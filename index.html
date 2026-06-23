@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formatar Campos (Tabela) — Arquivo TXT do Censo Escolar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --cor-fundo: #f4f6fa;
+            --cor-borda: #e4e8ef;
+            --cor-primaria: #2563eb;
+            --cor-texto-suave: #6b7280;
+        }
+
+        body {
+            background: var(--cor-fundo);
+            color: #1f2937;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        .app-titulo {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .app-sub {
+            color: var(--cor-texto-suave);
+            font-size: 0.95rem;
+        }
+
+        .cartao {
+            background: #ffffff;
+            border: 1px solid var(--cor-borda);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.04);
+        }
+
+        textarea.entrada-txt {
+            font-family: "Cascadia Code", "Consolas", monospace;
+            font-size: 0.82rem;
+            border-radius: 12px;
+            resize: vertical;
+        }
+
+        .chip-registro {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.35rem;
+            background: #eef2ff;
+            color: #3730a3;
+            border-radius: 999px;
+            padding: 0.25rem 0.7rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .chip-registro .qtd {
+            color: #6366f1;
+            font-weight: 500;
+        }
+
+        .chip-total {
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .nav-registros .nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.1rem;
+            border-radius: 10px;
+            color: #374151;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.4rem 0.85rem;
+        }
+
+        .nav-registros .nav-link .badge {
+            font-weight: 500;
+        }
+
+        .nav-registros .nav-link .aba-range {
+            font-size: 0.72rem;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .nav-registros .nav-link.active {
+            background: var(--cor-primaria);
+            color: #ffffff;
+        }
+
+        .tabela-scroll {
+            max-height: 72vh;
+            overflow: auto;
+            border: 1px solid var(--cor-borda);
+            border-radius: 12px;
+        }
+
+        table.tabela-campos {
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 0;
+            font-family: "Cascadia Code", "Consolas", monospace;
+            font-size: 0.8rem;
+            width: auto;
+        }
+
+        table.tabela-campos th,
+        table.tabela-campos td {
+            border-right: 1px solid var(--cor-borda);
+            border-bottom: 1px solid var(--cor-borda);
+            padding: 0.3rem 0.6rem;
+            white-space: nowrap;
+            text-align: left;
+        }
+
+        table.tabela-campos thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f0f3f9;
+            color: #374151;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        table.tabela-campos .col-linha {
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            background: #fbfcfe;
+            font-weight: 700;
+            color: var(--cor-texto-suave);
+            text-align: center;
+        }
+
+        table.tabela-campos thead th.col-linha {
+            z-index: 3;
+            background: #e9edf5;
+        }
+
+        table.tabela-campos tbody tr:nth-child(even) td {
+            background: #fafbfd;
+        }
+
+        table.tabela-campos tbody tr:nth-child(even) .col-linha {
+            background: #f3f5fa;
+        }
+
+        table.tabela-campos tbody tr:hover td {
+            background: #eef4ff;
+        }
+
+        table.tabela-campos thead th.destaque-col {
+            background: #fde68a;
+            color: #78350f;
+        }
+
+        table.tabela-campos tbody tr .col-linha.destaque-linha {
+            background: #fde68a;
+            color: #78350f;
+        }
+
+        table.tabela-campos td.vazio {
+            background-image: linear-gradient(45deg, rgba(0, 0, 0, 0.02) 25%, transparent 25%, transparent 50%, rgba(0, 0, 0, 0.02) 50%, rgba(0, 0, 0, 0.02) 75%, transparent 75%);
+            background-size: 8px 8px;
+        }
+
+        .carregando {
+            color: var(--cor-texto-suave);
+            font-size: 0.9rem;
+            padding: 1rem 0.25rem;
+        }
+
+        table.tabela-campos tbody td:not(.col-linha) {
+            position: relative;
+        }
+
+        table.tabela-campos tbody td:not(.col-linha):hover {
+            z-index: 1;
+        }
+
+        table.tabela-campos tbody td:not(.col-linha):hover::after {
+            content: "";
+            position: absolute;
+            left: -1px;
+            right: -1px;
+            top: -150vh;
+            bottom: -150vh;
+            background: rgba(253, 230, 138, 0.22);
+            pointer-events: none;
+        }
+
+        table.tabela-campos tbody tr.linha-suspeita .col-linha {
+            color: #b91c1c;
+            box-shadow: inset 3px 0 0 #ef4444;
+        }
+
+        .tabela-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .tabela-toolbar .tt-info {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 0.75rem;
+        }
+
+        .tabela-toolbar .banner-suspeita {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #b45309;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 999px;
+            padding: 0.15rem 0.6rem;
+        }
+
+        textarea.entrada-txt.dropzone-ativa {
+            border-color: var(--cor-primaria);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        #toastCopia {
+            position: fixed;
+            left: 50%;
+            bottom: 1.5rem;
+            transform: translate(-50%, 1rem);
+            z-index: 1090;
+            background: #111827;
+            color: #f9fafb;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            max-width: 80vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #toastCopia.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4 py-md-5 px-md-5">
+        <div class="col-md-8 m-auto">
+            <header class="mb-4">
+                <h1 class="app-titulo h3 mb-1">Formatar Campos (Tabela) — Arquivo TXT do Censo Escolar</h1>
+                <p class="app-sub mb-0">
+                    Cole o conteúdo, carregue ou arraste o arquivo <code>.txt</code> gerado pelo Censo. Cada
+                    registro vira uma tabela: a linha de origem na 1ª coluna e os campos nas colunas, com a
+                    posição (001, 002, ...) no cabeçalho.
+                </p>
+            </header>
+        </div>
+
+        <section class="cartao p-3 p-md-4 mb-4">
+            <label for="entradaTxt" class="form-label fw-semibold">Conteúdo do arquivo</label>
+            <textarea id="entradaTxt" class="form-control entrada-txt" rows="12"
+                placeholder="Cole aqui o conteúdo do arquivo TXT do Censo Escolar..."></textarea>
+            <div id="erroVazio" class="invalid-feedback">
+                Cole o conteúdo do arquivo TXT antes de processar.
+            </div>
+            <div class="d-flex gap-2 mt-3 justify-content-center flex-wrap">
+                <button id="btnProcessar" type="button" class="btn btn-primary px-4">Processar</button>
+                <label class="btn btn-info text-white mb-0">
+                    Carregar arquivo .txt
+                    <input id="arquivoTxt" type="file" accept=".txt,text/plain" hidden>
+                </label>
+                <button id="btnLimpar" type="button" class="btn btn-outline-warning">Limpar</button>
+            </div>
+        </section>
+
+        <section id="resultado" class="d-none">
+            <div class="cartao p-3 p-md-4">
+                <ul id="abasRegistros" class="nav nav-pills nav-registros gap-2 mb-3" role="tablist"></ul>
+                <div id="abasConteudo" class="tab-content"></div>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="toastCopia"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(function () {
+            var dadosPorRegistro = {};
+
+            function escaparHtml(texto) {
+                return String(texto)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+
+            function padPosicao(numero) {
+                return String(numero).padStart(3, "0");
+            }
+
+            function parsearConteudo(conteudo) {
+                var grupos = {};
+                var linhas = conteudo.split(/\r?\n/);
+
+                $.each(linhas, function (indice, linhaBruta) {
+                    var linha = linhaBruta.replace(/\s+$/, "");
+                    if ($.trim(linha) === "") {
+                        return;
+                    }
+                    var campos = linha.split("|");
+                    var tipo = campos[0];
+                    if (!grupos[tipo]) {
+                        grupos[tipo] = [];
+                    }
+                    grupos[tipo].push({
+                        numeroLinha: indice + 1,
+                        campos: campos
+                    });
+                });
+
+                return grupos;
+            }
+
+            function tiposOrdenados(grupos) {
+                return Object.keys(grupos).sort(function (a, b) {
+                    var na = parseInt(a, 10);
+                    var nb = parseInt(b, 10);
+                    if (isNaN(na) || isNaN(nb)) {
+                        return a.localeCompare(b);
+                    }
+                    return na - nb;
+                });
+            }
+
+            function maxCampos(linhas) {
+                var max = 0;
+                $.each(linhas, function (i, registro) {
+                    if (registro.campos.length > max) {
+                        max = registro.campos.length;
+                    }
+                });
+                return max;
+            }
+
+            function modoCampos(linhas) {
+                var contagem = {};
+                var melhor = 0;
+                var melhorQtd = -1;
+                $.each(linhas, function (i, registro) {
+                    var n = registro.campos.length;
+                    contagem[n] = (contagem[n] || 0) + 1;
+                    if (contagem[n] > melhorQtd) {
+                        melhorQtd = contagem[n];
+                        melhor = n;
+                    }
+                });
+                return melhor;
+            }
+
+            function montarAbas(grupos, tipos) {
+                var $abas = $("#abasRegistros").empty();
+                var $conteudo = $("#abasConteudo").empty();
+
+                $.each(tipos, function (i, tipo) {
+                    var ativa = i === 0;
+                    var idPainel = "painel-registro-" + tipo;
+                    var linhasTipo = grupos[tipo];
+                    var primeira = linhasTipo[0].numeroLinha;
+                    var ultima = linhasTipo[linhasTipo.length - 1].numeroLinha;
+
+                    $abas.append(
+                        '<li class="nav-item" role="presentation">' +
+                        '<button class="nav-link' + (ativa ? " active" : "") + '"' +
+                        ' id="aba-' + escaparHtml(tipo) + '" data-bs-toggle="pill"' +
+                        ' data-bs-target="#' + idPainel + '"' +
+                        ' type="button" role="tab" data-tipo="' + escaparHtml(tipo) + '">' +
+                        '<span class="aba-num">' + escaparHtml(tipo) +
+                        ' <span class="badge text-bg-light">' + linhasTipo.length + "</span></span>" +
+                        '<span class="aba-range">Linhas: ' + primeira + " a " + ultima + "</span>" +
+                        "</button></li>"
+                    );
+
+                    $conteudo.append(
+                        '<div class="tab-pane fade' + (ativa ? " show active" : "") + '"' +
+                        ' id="' + idPainel + '" role="tabpanel" data-renderizado="0">' +
+                        '<div class="carregando">Carregando tabela...</div>' +
+                        "</div>"
+                    );
+                });
+            }
+
+            function bannerSuspeitaHtml(linhas, padrao) {
+                var suspeitas = 0;
+                $.each(linhas, function (i, registro) {
+                    if (registro.campos.length !== padrao) {
+                        suspeitas++;
+                    }
+                });
+                if (suspeitas === 0) {
+                    return "";
+                }
+                return (
+                    '<div class="tabela-toolbar"><div class="tt-info">' +
+                    '<span class="banner-suspeita">⚠ ' + suspeitas +
+                    " linha(s) fora do padrão (" + padrao + " campos)</span>" +
+                    "</div></div>"
+                );
+            }
+
+            function renderizarTabelaHtml(linhas, padrao, totalColunas) {
+                var partes = [];
+
+                partes.push('<div class="tabela-scroll"><table class="tabela-campos">');
+
+                partes.push("<thead><tr>");
+                partes.push('<th class="col-linha">Linha</th>');
+                for (var c = 0; c < totalColunas; c++) {
+                    partes.push("<th>" + padPosicao(c + 1) + "</th>");
+                }
+                partes.push("</tr></thead>");
+
+                partes.push("<tbody>");
+                $.each(linhas, function (i, registro) {
+                    var suspeita = registro.campos.length !== padrao;
+                    partes.push("<tr" + (suspeita ? ' class="linha-suspeita"' : "") + ">");
+                    partes.push(
+                        '<td class="col-linha">' + (suspeita ? "⚠ " : "") +
+                        registro.numeroLinha + "</td>"
+                    );
+                    for (var j = 0; j < totalColunas; j++) {
+                        var valor = j < registro.campos.length ? registro.campos[j] : "";
+                        var classeVazio = valor.length === 0 ? ' class="vazio"' : "";
+                        partes.push("<td" + classeVazio + ">" + escaparHtml(valor) + "</td>");
+                    }
+                    partes.push("</tr>");
+                });
+                partes.push("</tbody>");
+
+                partes.push("</table></div>");
+
+                return partes.join("");
+            }
+
+            function renderizarPainel(tipo) {
+                var $painel = $("#painel-registro-" + tipo);
+                if ($painel.attr("data-renderizado") === "1") {
+                    return;
+                }
+                var linhas = dadosPorRegistro[tipo];
+                var padrao = modoCampos(linhas);
+                var totalColunas = maxCampos(linhas);
+                var html = bannerSuspeitaHtml(linhas, padrao) +
+                    renderizarTabelaHtml(linhas, padrao, totalColunas);
+                $painel.html(html);
+                $painel.attr("data-renderizado", "1");
+            }
+
+            function processar() {
+                var $entrada = $("#entradaTxt");
+                var conteudo = $entrada.val();
+
+                if ($.trim(conteudo) === "") {
+                    $entrada.addClass("is-invalid");
+                    $("#resultado").addClass("d-none");
+                    return;
+                }
+                $entrada.removeClass("is-invalid");
+
+                dadosPorRegistro = parsearConteudo(conteudo);
+                var tipos = tiposOrdenados(dadosPorRegistro);
+
+                montarAbas(dadosPorRegistro, tipos);
+                $("#resultado").removeClass("d-none");
+
+                if (tipos.length > 0) {
+                    renderizarPainel(tipos[0]);
+                }
+            }
+
+            function limpar() {
+                $("#entradaTxt").val("").removeClass("is-invalid");
+                $("#resultado").addClass("d-none");
+                $("#abasRegistros").empty();
+                $("#abasConteudo").empty();
+                $("#toastCopia").removeClass("show");
+                dadosPorRegistro = {};
+            }
+
+            function copiarTexto(texto) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(texto).catch(function () {
+                        copiarFallback(texto);
+                    });
+                } else {
+                    copiarFallback(texto);
+                }
+            }
+
+            function copiarFallback(texto) {
+                var area = document.createElement("textarea");
+                area.value = texto;
+                area.style.position = "fixed";
+                area.style.opacity = "0";
+                document.body.appendChild(area);
+                area.focus();
+                area.select();
+                try {
+                    document.execCommand("copy");
+                } catch (e) {
+                    area.blur();
+                }
+                document.body.removeChild(area);
+            }
+
+            var toastTimer = null;
+
+            function mostrarToast(valor) {
+                var texto = valor.length === 0
+                    ? "(vazio)"
+                    : (valor.length > 60 ? valor.slice(0, 60) + "..." : valor);
+                $("#toastCopia").text("Copiado: " + texto).addClass("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(function () {
+                    $("#toastCopia").removeClass("show");
+                }, 1200);
+            }
+
+            function carregarArquivo(arquivo) {
+                if (!arquivo) {
+                    return;
+                }
+                var leitor = new FileReader();
+                leitor.onload = function (e) {
+                    $("#entradaTxt").val(e.target.result).removeClass("is-invalid");
+                    processar();
+                };
+                leitor.readAsText(arquivo);
+            }
+
+            $("#btnProcessar").on("click", processar);
+            $("#btnLimpar").on("click", limpar);
+
+            $("#entradaTxt").on("input", function () {
+                if ($.trim($(this).val()) !== "") {
+                    $(this).removeClass("is-invalid");
+                }
+            });
+
+            $("#arquivoTxt").on("change", function () {
+                carregarArquivo(this.files[0]);
+                this.value = "";
+            });
+
+            $("#entradaTxt")
+                .on("dragover", function (e) {
+                    e.preventDefault();
+                    $(this).addClass("dropzone-ativa");
+                })
+                .on("dragleave dragend drop", function () {
+                    $(this).removeClass("dropzone-ativa");
+                })
+                .on("drop", function (e) {
+                    e.preventDefault();
+                    var dt = e.originalEvent.dataTransfer;
+                    if (dt && dt.files && dt.files.length) {
+                        carregarArquivo(dt.files[0]);
+                    }
+                });
+
+            $("#abasRegistros").on("shown.bs.tab", "button[data-tipo]", function () {
+                renderizarPainel($(this).attr("data-tipo"));
+            });
+
+            $("#abasConteudo").on("click", "table.tabela-campos tbody td", function () {
+                var valor = this.textContent.replace(/^⚠\s*/, "");
+                copiarTexto(valor);
+                mostrarToast(valor);
+            });
+
+            var colDestacada = null;
+            var linhaDestacada = null;
+
+            function limparDestaque() {
+                if (colDestacada) {
+                    colDestacada.classList.remove("destaque-col");
+                    colDestacada = null;
+                }
+                if (linhaDestacada) {
+                    linhaDestacada.classList.remove("destaque-linha");
+                    linhaDestacada = null;
+                }
+            }
+
+            $("#abasConteudo")
+                .on("mouseenter", "table.tabela-campos td", function () {
+                    limparDestaque();
+                    var idx = this.cellIndex;
+                    var tabela = this.closest("table");
+                    var cabecalho = tabela && tabela.tHead ? tabela.tHead.rows[0].cells[idx] : null;
+                    var celulaLinha = this.parentNode.cells[0];
+
+                    if (cabecalho) {
+                        cabecalho.classList.add("destaque-col");
+                        colDestacada = cabecalho;
+                    }
+                    if (celulaLinha) {
+                        celulaLinha.classList.add("destaque-linha");
+                        linhaDestacada = celulaLinha;
+                    }
+                })
+                .on("mouseleave", "table.tabela-campos td", limparDestaque);
+        });
+    </script>
+</body>
+</html>
